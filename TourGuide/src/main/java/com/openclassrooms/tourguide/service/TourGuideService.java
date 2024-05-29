@@ -18,6 +18,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -80,11 +82,12 @@ public class TourGuideService {
 	}
 
 	public List<Provider> getTripDeals(User user) {
-		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
+		int cumulativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
 		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(),
 				user.getUserPreferences().getNumberOfAdults(), user.getUserPreferences().getNumberOfChildren(),
-				user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				user.getUserPreferences().getTripDuration(), cumulativeRewardPoints);
 		user.setTripDeals(providers);
+		System.out.println(providers);
 		return providers;
 	}
 
@@ -95,15 +98,24 @@ public class TourGuideService {
 		return visitedLocation;
 	}
 
-	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		for (Attraction attraction : gpsUtil.getAttractions()) {
-			if (rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
+	public JSONObject getNearByAttractions(VisitedLocation visitedLocation) {
+		JSONObject response = new JSONObject();
+		response.put("userLocation", visitedLocation.location);
+		JSONArray attractionsArray = new JSONArray();
+		List<Attraction> nearestAttractions = rewardsService.getFiveNearestAttractions(visitedLocation.location);
+		for (Attraction attraction : nearestAttractions) {
+			JSONObject jsonObject = new JSONObject();
+			jsonObject.put("attractionName", attraction.attractionName);
+			jsonObject.put("attractionLongitude", attraction.longitude);
+			jsonObject.put("attractionLatitude", attraction.latitude);
+			jsonObject.put("userLongitude", visitedLocation.location.longitude);
+			jsonObject.put("userLatitude", visitedLocation.location.latitude);
+			jsonObject.put("userLatitude", visitedLocation.location.latitude);
+			jsonObject.put("distance", rewardsService.getDistance(visitedLocation.location, attraction.latitude, attraction.longitude));
+			attractionsArray.put(jsonObject);
 		}
-
-		return nearbyAttractions;
+		response.put("attractionsArray", attractionsArray);
+		return response;
 	}
 
 	private void addShutDownHook() {
