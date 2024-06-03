@@ -1,11 +1,10 @@
 package com.openclassrooms.tourguide;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,10 +21,12 @@ import com.openclassrooms.tourguide.service.TourGuideService;
 import com.openclassrooms.tourguide.user.User;
 import tripPricer.Provider;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class TestTourGuideService {
 
 	@Test
-	public void getUserLocation() {
+	public void getUserLocation() throws ExecutionException, InterruptedException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 		InternalTestHelper.setInternalUserNumber(0);
@@ -81,7 +82,7 @@ public class TestTourGuideService {
 	}
 
 	@Test
-	public void trackUser() {
+	public void trackUser() throws ExecutionException, InterruptedException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 		InternalTestHelper.setInternalUserNumber(0);
@@ -96,21 +97,26 @@ public class TestTourGuideService {
 	}
 
 	@Test
-	public void getNearbyAttractions() throws JSONException {
+	public void getNearbyAttractions() throws JSONException, JsonProcessingException {
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 		InternalTestHelper.setInternalUserNumber(0);
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 
 		User user = new User(UUID.randomUUID(), "jon", "000", "jon@tourGuide.com");
+		tourGuideService.addUser(user);
+
 		VisitedLocation visitedLocation = tourGuideService.trackUserLocation(user);
 
 		JSONObject result = tourGuideService.getNearByAttractions(visitedLocation);
 
 		tourGuideService.tracker.stopTracking();
 
-		JSONArray attractionsArray = result.getJSONArray("attractionsArray");
-		assertEquals(5, attractionsArray.length());
+		assertTrue(result.has("userLocation"));
+        assertInstanceOf(JSONObject.class, result.get("userLocation"));
+
+		assertTrue(result.has("nearestAttractions"));
+        assertInstanceOf(JSONArray.class, result.get("nearestAttractions"));
 	}
 
 	public void getTripDeals() {

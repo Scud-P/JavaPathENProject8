@@ -29,11 +29,11 @@ public class RewardsService {
 		this.gpsUtil = gpsUtil;
 		this.rewardsCentral = rewardCentral;
 	}
-	
+
 	public void setProximityBuffer(int proximityBuffer) {
 		this.proximityBuffer = proximityBuffer;
 	}
-	
+
 	public void setDefaultProximityBuffer() {
 		proximityBuffer = defaultProximityBuffer;
 	}
@@ -44,7 +44,7 @@ public class RewardsService {
 		
 		for(VisitedLocation visitedLocation : userLocations) {
 			for(Attraction attraction : attractions) {
-				if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
+				if(user.getUserRewards().stream().noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName))) {
 					if(nearAttraction(visitedLocation, attraction)) {
 						user.addUserReward(new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user)));
 					}
@@ -61,7 +61,7 @@ public class RewardsService {
 		return getDistance(attraction, visitedLocation.location) > proximityBuffer ? false : true;
 	}
 	
-	private int getRewardPoints(Attraction attraction, User user) {
+	public int getRewardPoints(Attraction attraction, User user) {
 		return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
 	}
 	
@@ -95,8 +95,10 @@ public class RewardsService {
 
 	public List<Attraction> getFiveNearestAttractions(Location location) {
 		List<Attraction> allAttractions = gpsUtil.getAttractions();
-		allAttractions.sort(Comparator.comparing(attraction -> getDistance(attraction, location)));
-		return allAttractions.subList(0, Math.min(5, allAttractions.size()));
+        return allAttractions.stream()
+				.sorted(Comparator.comparing(attraction -> getDistance(attraction, location)))
+				.limit(5)
+				.toList();
 	}
 
 }

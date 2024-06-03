@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.1.1</version>
+		<version>3.2.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.openclassrooms</groupId>
@@ -70,6 +70,30 @@
 			<artifactId>json</artifactId>
 			<version>20240303</version>
 		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.15.2</version>
+		</dependency>
+
+		<dependency>
+		<groupId>org.projectlombok</groupId>
+		<artifactId>lombok</artifactId>
+		<optional>true</optional>
+	</dependency>
+
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.5.5.Final</version>
+		</dependency>
+		<dependency>
+			<groupId>com.openclassrooms</groupId>
+			<artifactId>tourguide</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -78,7 +102,27 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.22.2</version>
+				<configuration>
+					<argLine>-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005</argLine>
+					<argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+					<argLine>
+						-Dcom.sun.management.jmxremote
+						-Dcom.sun.management.jmxremote.port=5005
+						-Dcom.sun.management.jmxremote.authenticate=false
+						-Dcom.sun.management.jmxremote.ssl=false
+						-XX:+UnlockCommercialFeatures
+						-XX:+FlightRecorder
+					</argLine>
+					<forkCount>0</forkCount>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
+
+
 
 </project>
