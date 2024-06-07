@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.openclassrooms.tourguide.TestRewardsService" time="0.987" tests="3" errors="0" skipped="1" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.openclassrooms.tourguide.TestRewardsService" time="0.704" tests="3" errors="0" skipped="1" failures="0">
   <properties/>
   <testcase name="nearAllAttractions" classname="com.openclassrooms.tourguide.TestRewardsService" time="0">
     <skipped message="public void com.openclassrooms.tourguide.TestRewardsService.nearAllAttractions() is @Disabled"/>
   </testcase>
-  <testcase name="userGetRewards" classname="com.openclassrooms.tourguide.TestRewardsService" time="0.975"/>
+  <testcase name="userGetRewards" classname="com.openclassrooms.tourguide.TestRewardsService" time="0.69"/>
   <testcase name="isWithinAttractionProximity" classname="com.openclassrooms.tourguide.TestRewardsService" time="0.011"/>
 </testsuite>

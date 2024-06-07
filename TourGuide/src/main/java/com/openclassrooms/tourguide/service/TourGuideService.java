@@ -3,6 +3,7 @@ package com.openclassrooms.tourguide.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openclassrooms.tourguide.DTO.AttractionDTO;
+import com.openclassrooms.tourguide.DTO.UserLocationDTO;
 import com.openclassrooms.tourguide.helper.InternalTestHelper;
 import com.openclassrooms.tourguide.tracker.Tracker;
 import com.openclassrooms.tourguide.user.User;
@@ -113,7 +114,7 @@ public class TourGuideService {
     }
 
 
-    public JSONObject getNearByAttractions(VisitedLocation visitedLocation) throws JsonProcessingException {
+    public JSONObject getNearByAttractions(VisitedLocation visitedLocation) {
 
         UUID userId = visitedLocation.userId;
         User user = getUserById(userId);
@@ -121,7 +122,8 @@ public class TourGuideService {
         List<Attraction> nearestAttractions = rewardsService.getFiveNearestAttractions(visitedLocation.location);
 
         List<AttractionDTO> attractionDTOS = nearestAttractions.stream()
-                .map(attraction -> new AttractionDTO(attraction.attractionName,
+                .map(attraction -> new AttractionDTO(
+                        attraction.attractionName,
                         attraction.latitude,
                         attraction.longitude,
                         rewardsService.getDistance(visitedLocation.location, attraction.latitude, attraction.longitude),
@@ -130,13 +132,13 @@ public class TourGuideService {
                 .sorted(Comparator.comparingDouble(AttractionDTO::getDistance))
                 .toList();
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        String userLocationJson = objectMapper.writeValueAsString(visitedLocation.location);
-        String attractionsJson = objectMapper.writeValueAsString(attractionDTOS);
+        UserLocationDTO userLocationDTO = new UserLocationDTO(visitedLocation);
+
+        //TODO second DTO pour visitedLocation + réponse
 
         JSONObject responseObject = new JSONObject();
-        responseObject.put("userLocation", new JSONObject(userLocationJson));
-        responseObject.put("nearestAttractions", new JSONArray(attractionsJson));
+        responseObject.put("userLocation", userLocationDTO);
+        responseObject.put("nearestAttractions", attractionDTOS);
 
         return responseObject;
     }

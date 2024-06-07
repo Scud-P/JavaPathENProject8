@@ -1,4 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: com.openclassrooms.tourguide.TestPerformance
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 38.687 s - in com.openclassrooms.tourguide.TestPerformance
+Tests run: 5, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 511.655 s <<< FAILURE! - in com.openclassrooms.tourguide.TestPerformance
+testCalculateRewardsConsistency  Time elapsed: 48.842 s  <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+	at com.openclassrooms.tourguide.TestPerformance.testCalculateRewardsConsistency(TestPerformance.java:225)
+

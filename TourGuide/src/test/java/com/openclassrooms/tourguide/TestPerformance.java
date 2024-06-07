@@ -1,7 +1,5 @@
 package com.openclassrooms.tourguide;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -10,8 +8,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.openclassrooms.tourguide.user.UserReward;
 import org.apache.commons.lang3.time.StopWatch;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import gpsUtil.GpsUtil;
@@ -25,163 +23,284 @@ import com.openclassrooms.tourguide.service.RewardsService;
 import com.openclassrooms.tourguide.service.TourGuideService;
 import com.openclassrooms.tourguide.user.User;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 public class TestPerformance {
 
-	/*
-	 * A note on performance improvements:
-	 * 
-	 * The number of users generated for the high volume tests can be easily
-	 * adjusted via this method:
-	 * 
-	 * InternalTestHelper.setInternalUserNumber(100000);
-	 * 
-	 * 
-	 * These tests can be modified to suit new solutions, just as long as the
-	 * performance metrics at the end of the tests remains consistent.
-	 * 
-	 * These are performance metrics that we are trying to hit:
-	 * 
-	 * highVolumeTrackLocation: 100,000 users within 15 minutes:
-	 * assertTrue(TimeUnit.MINUTES.toSeconds(15) >=
-	 * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	 *
-	 * highVolumeGetRewards: 100,000 users within 20 minutes:
-	 * assertTrue(TimeUnit.MINUTES.toSeconds(20) >=
-	 * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	 */
+    /*
+     * A note on performance improvements:
+     *
+     * The number of users generated for the high volume tests can be easily
+     * adjusted via this method:
+     *
+     * InternalTestHelper.setInternalUserNumber(100000);
+     *
+     *
+     * These tests can be modified to suit new solutions, just as long as the
+     * performance metrics at the end of the tests remains consistent.
+     *
+     * These are performance metrics that we are trying to hit:
+     *
+     * highVolumeTrackLocation: 100,000 users within 15 minutes:
+     * assertTrue(TimeUnit.MINUTES.toSeconds(15) >=
+     * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+     *
+     * highVolumeGetRewards: 100,000 users within 20 minutes:
+     * assertTrue(TimeUnit.MINUTES.toSeconds(20) >=
+     * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+     */
 
-	private Logger logger = LoggerFactory.getLogger(TestPerformance.class);
+    private Logger logger = LoggerFactory.getLogger(TestPerformance.class);
 
 
-	@Test
-	public void highVolumeTrackLocation() {
+    @Test
+    public void highVolumeTrackLocation() {
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+        // Users should be incremented up to 100,000, and test finishes within 15
+        // minutes
+        InternalTestHelper.setInternalUserNumber(100);
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+
+        List<User> allUsers = new ArrayList<>();
+        allUsers = tourGuideService.getAllUsers();
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        for (User user : allUsers) {
+            tourGuideService.trackUserLocation(user);
+        }
+        stopWatch.stop();
+        tourGuideService.tracker.stopTracking();
+
+        System.out.println("highVolumeTrackLocation: Time Elapsed: "
+                + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
+        assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+    }
+
+    @Test
+    public void highVolumeTrackLocationAsync() throws InterruptedException, ExecutionException {
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+
+        InternalTestHelper.setInternalUserNumber(100000);
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+
+        List<User> allUsers = tourGuideService.getAllUsers();
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+
+        List<CompletableFuture<VisitedLocation>> locationFutures = allUsers.stream()
+                .map(tourGuideService::trackUserLocationAsync)
+                .toList();
+
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(locationFutures.toArray(new CompletableFuture[0]));
+        allFutures.get();
+
+        stopWatch.stop();
+        tourGuideService.tracker.stopTracking();
+
+        System.out.println(allUsers.size());
+        System.out.println("highVolumeTrackLocation: Time Elapsed: "
+                + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
+        assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+    }
+
+    @Test
+    public void testTrackUserLocationConsistency() throws ExecutionException, InterruptedException {
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+        // Users should be incremented up to 100,000, and test finishes within 15
+        // minutes
+        InternalTestHelper.setInternalUserNumber(100);
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+
+        // Create two lists to test the output of both Sync and Async methods
+        List<User> allUsers = tourGuideService.getAllUsers();
+        List<User> allUsersAsync = new ArrayList<>(allUsers);
+
+
+        // Track users synchronously
+        StopWatch stopWatchSync = new StopWatch();
+        stopWatchSync.start();
+        for (User user : allUsers) {
+            tourGuideService.trackUserLocation(user);
+        }
+        stopWatchSync.stop();
+        tourGuideService.tracker.stopTracking();
+
+        // Track users asynchronously
+        StopWatch stopWatchAsync = new StopWatch();
+        stopWatchAsync.start();
+        List<CompletableFuture<VisitedLocation>> locationFutures = allUsersAsync.stream()
+                .map(tourGuideService::trackUserLocationAsync)
+                .toList();
+
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(locationFutures.toArray(new CompletableFuture[0]));
+        allFutures.get();
+        stopWatchAsync.stop();
+        tourGuideService.tracker.stopTracking();
+
+        //Assert that the asynchronous method is faster
+        assertTrue((stopWatchSync.getTime()) > (stopWatchAsync.getTime()));
+        System.out.println("Sync time: " + stopWatchSync.getTime() + " ms");
+        System.out.println("Async time: " + stopWatchAsync.getTime() + " ms");
+
+        //Assert that the synchronous and asynchronous methods yield the same result
+
+        for (int i = 0; i < allUsers.size(); i++) {
+            User userSync = allUsers.get(i);
+            User userAsync = allUsersAsync.get(i);
+
+            // Assert that the number of visited locations are the same
+            List<VisitedLocation> visitedLocationsSync = userSync.getVisitedLocations();
+            List<VisitedLocation> visitedLocationsAsync = userAsync.getVisitedLocations();
+            assertEquals(visitedLocationsSync.size(), visitedLocationsAsync.size());
+
+            // Assert that the visited locations are the same
+            for (int j = 0; j < visitedLocationsSync.size(); j++) {
+                assertEquals(visitedLocationsSync.get(j).location.latitude, visitedLocationsAsync.get(j).location.latitude);
+                assertEquals(visitedLocationsSync.get(j).location.longitude, visitedLocationsAsync.get(j).location.longitude);
+            }
+
+            // Assert that the rewards are the same
+            List<UserReward> userRewardsSync = userSync.getUserRewards();
+            List<UserReward> userRewardsAsync = userAsync.getUserRewards();
+            assertEquals(userRewardsSync.size(), userRewardsAsync.size());
+            for (int k = 0; k < userRewardsSync.size(); k++) {
+                assertEquals(userRewardsSync.get(k).getRewardPoints(), userRewardsAsync.get(k).getRewardPoints());
+            }
+        }
+    }
+
+    @Test
+    public void highVolumeGetRewards() {
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+
+        // Users should be incremented up to 100,000, and test finishes within 20
+        // minutes
+        InternalTestHelper.setInternalUserNumber(100);
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+
+        Attraction attraction = gpsUtil.getAttractions().get(0);
+        List<User> allUsers = tourGuideService.getAllUsers();
+
+        allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
+
+        allUsers.forEach(rewardsService::calculateRewards);
+
+        for (User user : allUsers) {
+            assertFalse(user.getUserRewards().isEmpty());
+        }
+        stopWatch.stop();
+        tourGuideService.tracker.stopTracking();
+
+        System.out.println("highVolumeGetRewards: Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime())
+                + " seconds.");
+        assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+    }
+
+    @Test
+	public void highVolumeGetBatchRewards() {
+		// Initialize dependencies
 		GpsUtil gpsUtil = new GpsUtil();
 		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
-		// Users should be incremented up to 100,000, and test finishes within 15
-		// minutes
-		InternalTestHelper.setInternalUserNumber(1000);
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 
-		List<User> allUsers = new ArrayList<>();
-		allUsers = tourGuideService.getAllUsers();
-
-		StopWatch stopWatch = new StopWatch();
-		stopWatch.start();
-		for (User user : allUsers) {
-			tourGuideService.trackUserLocation(user);
-		}
-		stopWatch.stop();
-		tourGuideService.tracker.stopTracking();
-
-		System.out.println("highVolumeTrackLocation: Time Elapsed: "
-				+ TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
-		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	}
-
-	@Test
-	public void highVolumeTrackLocationAsync() throws InterruptedException, ExecutionException {
-		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
-
+		// Users should be incremented up to 100,000, and test finishes within 20 minutes
 		InternalTestHelper.setInternalUserNumber(100000);
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 
+		// Start stopwatch for the entire test
+		StopWatch totalStopWatch = new StopWatch();
+		totalStopWatch.start();
+
+		// Get the list of all users
 		List<User> allUsers = tourGuideService.getAllUsers();
 
-		StopWatch stopWatch = new StopWatch();
-		stopWatch.start();
-
-		List<CompletableFuture<VisitedLocation>> locationFutures = allUsers.stream()
-				.map(tourGuideService::trackUserLocationAsync)
-				.toList();
-
-		CompletableFuture<Void> allFutures = CompletableFuture.allOf(locationFutures.toArray(new CompletableFuture[0]));
-		allFutures.get();
-
-		stopWatch.stop();
-
-		System.out.println(allUsers.size());
-		System.out.println("highVolumeTrackLocation: Time Elapsed: "
-				+ TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
-		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	}
-
-	@Test
-	public void highVolumeTrackLocationAsyncWithDebugLogging() throws InterruptedException, ExecutionException {
-		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
-
-		InternalTestHelper.setInternalUserNumber(100000);
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
-
-		List<User> allUsers = tourGuideService.getAllUsers();
-
-		StopWatch stopWatch = new StopWatch();
-		stopWatch.start();
-
-		AtomicInteger trackedUsers = new AtomicInteger();
-
-		List<CompletableFuture<VisitedLocation>> locationFutures = allUsers.stream()
-				.map(user -> {
-					CompletableFuture<VisitedLocation> future = tourGuideService.trackUserLocationAsync(user);
-					future.thenAccept(visitedLocation -> {
-						trackedUsers.getAndIncrement();
-						logger.info("Number of tracked users: {}" , trackedUsers);
-					}).exceptionally(ex -> {
-						logger.error("Error tracking location for user {}: {}", user.getUserId(), ex.getMessage());
-						return null;
-					});
-					return future;
-				})
-				.toList();
-
-		CompletableFuture<Void> allFutures = CompletableFuture.allOf(locationFutures.toArray(new CompletableFuture[0]));
-		try {
-			allFutures.get();
-			logger.info("All futures completed successfully.");
-		} catch (InterruptedException | ExecutionException e) {
-			logger.error("Error waiting for futures to complete: {}", e.getMessage());
-		}
-
-		allFutures.get();
-
-		stopWatch.stop();
-
-		System.out.println(allUsers.size());
-		System.out.println("highVolumeTrackLocation: Time Elapsed: "
-				+ TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
-		assertTrue(TimeUnit.MINUTES.toSeconds(15) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
-	}
-
-
-	@Disabled
-	@Test
-	public void highVolumeGetRewards() {
-		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
-
-		// Users should be incremented up to 100,000, and test finishes within 20
-		// minutes
-		InternalTestHelper.setInternalUserNumber(100);
-		StopWatch stopWatch = new StopWatch();
-		stopWatch.start();
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
-
+		// Add visited locations for all users at a specific attraction
 		Attraction attraction = gpsUtil.getAttractions().get(0);
-		List<User> allUsers = tourGuideService.getAllUsers();
 		allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
 
-		allUsers.forEach(u -> rewardsService.calculateRewards(u));
+        AtomicInteger calculatedRewards = new AtomicInteger();
 
+        // Calculate rewards for all users in one call
+		StopWatch loopStopWatch = new StopWatch(); // Create a new StopWatch for measuring loop time
+		loopStopWatch.start(); // Start the stopwatch for the loop
+		rewardsService.calculateBatchRewards(allUsers, calculatedRewards);
+		loopStopWatch.stop(); // Stop the stopwatch for the loop
+
+		// Calculate total time elapsed
+		totalStopWatch.stop();
+		long totalTime = totalStopWatch.getTime();
+
+		// Output loop time and total time
+		System.out.println("Total time (ms) for calculating rewards for all users: " + loopStopWatch.getTime());
+		System.out.println("Total time (ms) elapsed for the test: " + totalTime);
+
+		// Print total tracked users
+		System.out.println("Total tracked users: " + allUsers.size());
+
+		// Assertions or further processing if needed
 		for (User user : allUsers) {
-			assertTrue(user.getUserRewards().size() > 0);
+            assertFalse(user.getUserRewards().isEmpty());
 		}
-		stopWatch.stop();
-		tourGuideService.tracker.stopTracking();
 
-		System.out.println("highVolumeGetRewards: Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime())
-				+ " seconds.");
-		assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+		// Ensure test finishes within 20 minutes
+		assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(totalTime));
 	}
 
+    @Test
+    public void testCalculateRewardsConsistency() {
+
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardCentral rewardCentral = new RewardCentral();
+        RewardsService rewardsServiceAsync = new RewardsService(gpsUtil, rewardCentral);
+        RewardsService rewardsServiceSync = new RewardsService(gpsUtil, rewardCentral);
+
+        // Users should be incremented up to 100,000, and test finishes within 20 minutes
+        InternalTestHelper.setInternalUserNumber(100);
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsServiceAsync);
+
+        // Get the list of all users
+        List<User> allUsers = tourGuideService.getAllUsers();
+
+        // Add visited locations for all users at a specific attraction
+        Attraction attraction = gpsUtil.getAttractions().get(0);
+        allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
+
+        // Create second list to process asynchronously and be able to compare both lists
+        List<User> allUsersAsync = new ArrayList<>(allUsers);
+
+        // Calculate rewards for all users synchronously
+        StopWatch stopWatchSync = new StopWatch();
+        stopWatchSync.start();
+        allUsers.forEach(rewardsServiceSync::calculateRewards);
+        stopWatchSync.stop();
+
+        // Calculate rewards for all users asynchronously
+        StopWatch stopWatchAsync = new StopWatch();
+        stopWatchAsync.start();
+        AtomicInteger calculatedRewardsAsync = new AtomicInteger();
+        rewardsServiceAsync.calculateBatchRewards(allUsersAsync, calculatedRewardsAsync);
+        stopWatchAsync.stop();
+
+        //Assert that the asynchronous method is faster
+        assertTrue((stopWatchSync.getTime()) > (stopWatchAsync.getTime()));
+        System.out.println("Sync time: " + stopWatchSync.getTime() + " ms");
+        System.out.println("Async time: " + stopWatchAsync.getTime() + " ms");
+
+        // Compare that sync and async method provide the same result
+        for (int i = 0; i < allUsers.size(); i++) {
+            List<UserReward> userRewardsSync = allUsers.get(i).getUserRewards();
+            List<UserReward> userRewardsAsync = allUsersAsync.get(i).getUserRewards();
+
+            assertEquals(userRewardsSync, userRewardsAsync);
+            assertEquals(userRewardsSync.size(), userRewardsAsync.size());
+            assertTrue(userRewardsSync.containsAll(userRewardsAsync));
+        }
+    }
 }
