@@ -23,5 +23,4 @@ public class UserReward {
 		this.visitedLocation = visitedLocation;
 		this.attraction = attraction;
 	}
-
 }

@@ -61,30 +61,24 @@ public class RewardsService {
         }
     }
 
-    public void calculateBatchRewards(List<User> users, AtomicInteger calculatedRewards) {
-        List<CompletableFuture<Void>> futures = users.stream()
-                .map(user -> CompletableFuture.runAsync(() -> {
-                    List<VisitedLocation> userLocations = user.getVisitedLocations();
-                    List<Attraction> attractions = gpsUtil.getAttractions();
+    public CompletableFuture<Void> calculateRewardsAsync(User user, AtomicInteger rewardsCounter) {
+        return CompletableFuture.runAsync(() -> {
+            List<VisitedLocation> userLocations = user.getVisitedLocations();
+            List<Attraction> attractions = gpsUtil.getAttractions();
 
-                    for (VisitedLocation visitedLocation : userLocations) {
-                        for (Attraction attraction : attractions) {
-                            if (user.getUserRewards().stream().noneMatch(r -> r.getAttraction().equals(attraction))) {
-                                if (nearAttraction(visitedLocation, attraction)) {
-                                    int rewardPoints = getRewardPoints(attraction, user);
-                                    user.addUserReward(new UserReward(visitedLocation, attraction, rewardPoints));
-                                    int rewardCount = calculatedRewards.incrementAndGet();
-                                    logger.info("Number of rewards calculated asynchronously: {}", rewardCount);
-                                }
-                            }
+            for (VisitedLocation visitedLocation : userLocations) {
+                for (Attraction attraction : attractions) {
+                    if (user.getUserRewards().stream().noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName))) {
+                        if (nearAttraction(visitedLocation, attraction)) {
+                            user.addUserReward(new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user)));
+                            rewardsCounter.getAndIncrement();
+                            logger.info("User with name: {} just gained {} reward points", user.getUserName(), getRewardPoints(attraction, user));
                         }
                     }
-                }, executorService))
-                .toList();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                }
+            }
+        }, executorService);
     }
-
-
 
     public boolean isWithinAttractionProximity(Attraction attraction, Location location) {
         return getDistance(attraction, location) > attractionProximityRange ? false : true;

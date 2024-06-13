@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.openclassrooms.tourguide.TestTourGuideService" time="3.007" tests="5" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" name="com.openclassrooms.tourguide.TestTourGuideService" time="2.011" tests="5" errors="1" skipped="0" failures="0">
   <properties/>
-  <testcase name="getUserLocation" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.108"/>
+  <testcase name="getUserLocation" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.056"/>
   <testcase name="addUser" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.002"/>
   <testcase name="getAllUsers" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.001"/>
-  <testcase name="trackUser" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.046"/>
-  <testcase name="getNearbyAttractions" classname="com.openclassrooms.tourguide.TestTourGuideService" time="2.849"/>
+  <testcase name="trackUser" classname="com.openclassrooms.tourguide.TestTourGuideService" time="0.089"/>
+  <testcase name="getNearbyAttractions" classname="com.openclassrooms.tourguide.TestTourGuideService" time="1.857">
+    <error message="&apos;org.json.JSONObject org.json.JSONObject.put(java.lang.String, java.util.Collection)&apos;" type="java.lang.NoSuchMethodError">java.lang.NoSuchMethodError: 'org.json.JSONObject org.json.JSONObject.put(java.lang.String, java.util.Collection)'
+	at com.openclassrooms.tourguide.TestTourGuideService.getNearbyAttractions(TestTourGuideService.java:111)
+</error>
+    <system-out><![CDATA[14:07:12.515 [main] INFO com.openclassrooms.tourguide.service.TourGuideService -- TestMode enabled
+]]></system-out>
+  </testcase>
 </testsuite>

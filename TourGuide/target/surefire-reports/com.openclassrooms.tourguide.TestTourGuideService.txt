@@ -1,4 +1,8 @@
 -------------------------------------------------------------------------------
 Test set: com.openclassrooms.tourguide.TestTourGuideService
 -------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.007 s - in com.openclassrooms.tourguide.TestTourGuideService
+Tests run: 5, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 2.011 s <<< FAILURE! - in com.openclassrooms.tourguide.TestTourGuideService
+getNearbyAttractions  Time elapsed: 1.857 s  <<< ERROR!
+java.lang.NoSuchMethodError: 'org.json.JSONObject org.json.JSONObject.put(java.lang.String, java.util.Collection)'
+	at com.openclassrooms.tourguide.TestTourGuideService.getNearbyAttractions(TestTourGuideService.java:111)
+

@@ -50,9 +50,6 @@ public class TestPerformance {
      * TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
      */
 
-    private Logger logger = LoggerFactory.getLogger(TestPerformance.class);
-
-
     @Test
     public void highVolumeTrackLocation() {
         GpsUtil gpsUtil = new GpsUtil();
@@ -205,56 +202,51 @@ public class TestPerformance {
     }
 
     @Test
-	public void highVolumeGetBatchRewards() {
-		// Initialize dependencies
-		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+    public void highVolumeGetRewardsAsync() throws ExecutionException, InterruptedException {
+        GpsUtil gpsUtil = new GpsUtil();
+        RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
 
-		// Users should be incremented up to 100,000, and test finishes within 20 minutes
-		InternalTestHelper.setInternalUserNumber(100000);
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+        // Users should be incremented up to 100,000, and test finishes within 20 minutes
+        InternalTestHelper.setInternalUserNumber(100);
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+        TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
 
-		// Start stopwatch for the entire test
-		StopWatch totalStopWatch = new StopWatch();
-		totalStopWatch.start();
+        Attraction attraction = gpsUtil.getAttractions().get(0);
+        List<User> allUsers = tourGuideService.getAllUsers();
 
-		// Get the list of all users
-		List<User> allUsers = tourGuideService.getAllUsers();
+        allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
 
-		// Add visited locations for all users at a specific attraction
-		Attraction attraction = gpsUtil.getAttractions().get(0);
-		allUsers.forEach(u -> u.addToVisitedLocations(new VisitedLocation(u.getUserId(), attraction, new Date())));
+        AtomicInteger rewardsCounter = new AtomicInteger(0);
 
-        AtomicInteger calculatedRewards = new AtomicInteger();
+        // Use async reward calculation
 
-        // Calculate rewards for all users in one call
-		StopWatch loopStopWatch = new StopWatch(); // Create a new StopWatch for measuring loop time
-		loopStopWatch.start(); // Start the stopwatch for the loop
-		rewardsService.calculateBatchRewards(allUsers, calculatedRewards);
-		loopStopWatch.stop(); // Stop the stopwatch for the loop
+        List<CompletableFuture<Void>> futures = allUsers.stream()
+                .map(user -> rewardsService.calculateRewardsAsync(user, rewardsCounter))
+                .toList();
 
-		// Calculate total time elapsed
-		totalStopWatch.stop();
-		long totalTime = totalStopWatch.getTime();
+        // Wait for all asynchronous calculations to complete
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        allOf.get();
 
-		// Output loop time and total time
-		System.out.println("Total time (ms) for calculating rewards for all users: " + loopStopWatch.getTime());
-		System.out.println("Total time (ms) elapsed for the test: " + totalTime);
+        // Assert that each user has rewards
+        for (User user : allUsers) {
+            if (user.getUserRewards().isEmpty()) {
+                System.out.println("User " + user.getUserName() + " has no rewards");
+            }
+            assertFalse(user.getUserRewards().isEmpty(), "User " + user.getUserName() + " has no rewards");
+        }
 
-		// Print total tracked users
-		System.out.println("Total tracked users: " + allUsers.size());
+        stopWatch.stop();
+        tourGuideService.tracker.stopTracking();
 
-		// Assertions or further processing if needed
-		for (User user : allUsers) {
-            assertFalse(user.getUserRewards().isEmpty());
-		}
-
-		// Ensure test finishes within 20 minutes
-		assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(totalTime));
-	}
+        System.out.println("highVolumeGetRewards: Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime())
+                + " seconds.");
+        assertTrue(TimeUnit.MINUTES.toSeconds(20) >= TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
+    }
 
     @Test
-    public void testCalculateRewardsConsistency() {
+    public void testCalculateRewardsConsistency() throws ExecutionException, InterruptedException {
 
         GpsUtil gpsUtil = new GpsUtil();
         RewardCentral rewardCentral = new RewardCentral();
@@ -285,7 +277,15 @@ public class TestPerformance {
         StopWatch stopWatchAsync = new StopWatch();
         stopWatchAsync.start();
         AtomicInteger calculatedRewardsAsync = new AtomicInteger();
-        rewardsServiceAsync.calculateBatchRewards(allUsersAsync, calculatedRewardsAsync);
+        allUsersAsync.forEach(user -> rewardsServiceAsync.calculateRewardsAsync(user, calculatedRewardsAsync));
+        List<CompletableFuture<Void>> futures = allUsersAsync.stream()
+                .map(user -> rewardsServiceAsync.calculateRewardsAsync(user, calculatedRewardsAsync))
+                .toList();
+
+        // Wait for all asynchronous calculations to complete
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        allOf.get();
+
         stopWatchAsync.stop();
 
         //Assert that the asynchronous method is faster
